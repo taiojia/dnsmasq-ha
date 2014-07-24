@@ -1,0 +1,28 @@
+global_defs {
+   notification_email {
+   }
+   router_id DNSMASQ_1
+}
+vrrp_script chk_dnsmasq {
+    script "killall -0 dnsmasq"
+    interval 2
+}
+vrrp_instance VI_10 {
+    state MASTER
+    interface eth0
+    garp_master_delay 10
+    virtual_router_id 10
+    nopreempt
+    priority 150
+    advert_int 4
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.1.233/24 brd 192.168.1.255 dev eth0
+    }
+    track_script {
+        chk_dnsmasq
+    }
+}
