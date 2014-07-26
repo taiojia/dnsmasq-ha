@@ -15,7 +15,7 @@ command = Command()
 
 
 def usage():
-	print 'Usage: sudo python dnsmasq-ha.py [master|backup]'
+	print 'Usage: sudo python dnsmasq-ha.py <master|backup>'
 
 
 def update_apt_source():
