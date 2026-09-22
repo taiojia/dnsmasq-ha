@@ -24,9 +24,9 @@ Both scripts are idempotent (re-run = safe upgrade), elevate with `sudo` interna
 
 1. Verify git + Node >= 18; auto-install Node 20 via NodeSource when missing/stale (Ubuntu 22.04 ships Node 12).
 2. Clone (first run) or fetch + hard-reset (upgrade) the repo to `/opt/dnsmasq-ha` (overridable `--dir`), then `npm ci` (postinstall builds the contract).
-3. Write `/etc/dnsmasq-ha/agent.env` (`0600` dir `0700`) with a generated 32-byte hex token on first run; upgrades preserve the existing token unless `--token` is given. `AGENT_PORT` default `8080`.
+3. Write `/etc/dnsmasq-ha/agent.env` (`0600`, dir `0700`) with a generated 32-byte hex token on first run; upgrades preserve the existing token unless `--token` is given. Also persists `AGENT_HOST` (default `0.0.0.0` = all interfaces — the UI connects from another machine) and `AGENT_PORT` (default `8080`).
 4. Write `/etc/systemd/system/dnsmasq-ha-agent.service` (`Wants=network-online.target`, `EnvironmentFile`, `Restart=always`, resolved absolute `npm` path) → `daemon-reload` → `enable --now` → restart on upgrade.
-5. Print a summary: detected node IP, agent URL, current token, and next steps for the UI.
+5. Print a summary: listen address (`0.0.0.0` = all interfaces), every detected node URL, the current token, the env file path, and a `ufw` hint when the firewall is active.
 6. Flags: `--token`, `--port`, `--dir`, `--ref <branch|tag>` (pin), `--purge`, `--uninstall` (disables + removes service and env file; install dir kept unless `--purge`; never prompts on non-tty).
 
 ### `install-ui.sh`
@@ -50,7 +50,7 @@ Both scripts are idempotent (re-run = safe upgrade), elevate with `sudo` interna
 ## Acceptance Criteria
 
 - Both scripts pass `bash -n` and run under `set -euo pipefail`.
-- On a systemd host: `install-agent.sh` (with `--dir`/`--port` overrides) ends with the service `active`; `GET /api/v1/status` answers 401 without the token and 200 with the token from the env file; a second run upgrades in place keeping the token; `--uninstall` removes the unit and env file and leaves no running service.
+- On a systemd host: `install-agent.sh` (with `--dir`/`--port` overrides) ends with the service `active`; the agent listens on `0.0.0.0` (verified via `/proc/net/tcp` and by requesting the node's LAN IP); the summary prints the listen address, all node URLs and the token; `GET /api/v1/status` answers 401 without the token and 200 with the token from the env file; a second run upgrades in place keeping the token; `--uninstall` removes the unit and env file and leaves no running service.
 - `install-ui.sh` produces a launcher that serves the built UI on the chosen port (verified via HTTP 200) and `--uninstall` removes it.
 - Token survives upgrades (regression check), is regenerated only on first install or `--token`.
 - README documents both one-liners, flags, and the `bash -s --` argument pattern.

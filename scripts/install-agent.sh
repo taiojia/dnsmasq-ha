@@ -11,6 +11,8 @@
 #
 # Flags:
 #   --token <tok>   Agent API token (generated on first install if omitted)
+#   --host <addr>   Listen address (default 0.0.0.0 = all interfaces; the UI
+#                   connects from another machine, so do not use 127.0.0.1)
 #   --port <port>   Agent listen port (default 8080)
 #   --dir <path>    Install directory (default /opt/dnsmasq-ha)
 #   --ref <ref>     Branch or tag to install (default master)
@@ -27,6 +29,7 @@ REPO_URL="https://github.com/taiojia/dnsmasq-ha.git"
 INSTALL_DIR="/opt/dnsmasq-ha"
 REF="master"
 PORT="8080"
+HOST="0.0.0.0"
 TOKEN=""
 SERVICE="dnsmasq-ha-agent"
 ENV_DIR="/etc/dnsmasq-ha"
@@ -46,6 +49,7 @@ usage() { sed -n '2,/^# --------------------------------------------------------
 while [ $# -gt 0 ]; do
   case "$1" in
     --token)    TOKEN="${2:?--token requires a value}"; shift 2 ;;
+    --host)     HOST="${2:?--host requires a value}"; shift 2 ;;
     --port)     PORT="${2:?--port requires a value}"; shift 2 ;;
     --dir)      INSTALL_DIR="${2:?--dir requires a value}"; shift 2 ;;
     --ref)      REF="${2:?--ref requires a value}"; shift 2 ;;
@@ -134,28 +138,30 @@ $SUDO npm ci --no-audit --no-fund --prefix "$INSTALL_DIR"
 # -----------------------------------------------------------------------------
 # Env file: generate token on first install, preserve on upgrades
 # -----------------------------------------------------------------------------
-$SUDO install -d -m 700 "$ENV_DIR"
-if $SUDO test -f "$ENV_FILE"; then
-  if [ -n "$TOKEN" ]; then
-    warn "replacing existing token in ${ENV_FILE}"
-    printf 'AGENT_TOKEN=%s\nAGENT_PORT=%s\n' "$TOKEN" "$PORT" | $SUDO tee "$ENV_FILE" >/dev/null
+# Upsert a KEY=value line in the env file (keeps manual edits to other keys).
+upsert_env() {
+  local key="$1" value="$2"
+  if $SUDO grep -q "^${key}=" "$ENV_FILE"; then
+    $SUDO sed -i "s/^${key}=.*/${key}=${value}/" "$ENV_FILE"
   else
-    # Keep the existing token; refresh the port only when explicitly provided.
-    if ! $SUDO grep -q '^AGENT_TOKEN=' "$ENV_FILE"; then
-      die "${ENV_FILE} exists but has no AGENT_TOKEN; re-run with --token"
-    fi
-    if $SUDO grep -q '^AGENT_PORT=' "$ENV_FILE"; then
-      $SUDO sed -i "s/^AGENT_PORT=.*/AGENT_PORT=${PORT}/" "$ENV_FILE"
-    else
-      printf 'AGENT_PORT=%s\n' "$PORT" | $SUDO tee -a "$ENV_FILE" >/dev/null
-    fi
+    printf '%s=%s\n' "$key" "$value" | $SUDO tee -a "$ENV_FILE" >/dev/null
   fi
-else
+}
+
+$SUDO install -d -m 700 "$ENV_DIR"
+if ! $SUDO test -f "$ENV_FILE"; then
   if [ -z "$TOKEN" ]; then
     TOKEN="$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')"
   fi
-  printf 'AGENT_TOKEN=%s\nAGENT_PORT=%s\n' "$TOKEN" "$PORT" | $SUDO tee "$ENV_FILE" >/dev/null
+  printf 'AGENT_TOKEN=%s\n' "$TOKEN" | $SUDO tee "$ENV_FILE" >/dev/null
+elif [ -n "$TOKEN" ]; then
+  warn "replacing existing token in ${ENV_FILE}"
+  upsert_env AGENT_TOKEN "$TOKEN"
+elif ! $SUDO grep -q '^AGENT_TOKEN=' "$ENV_FILE"; then
+  die "${ENV_FILE} exists but has no AGENT_TOKEN; re-run with --token"
 fi
+upsert_env AGENT_HOST "$HOST"
+upsert_env AGENT_PORT "$PORT"
 $SUDO chmod 600 "$ENV_FILE"
 
 # -----------------------------------------------------------------------------
@@ -197,17 +203,30 @@ done
 [ "$STATE" = "active" ] || die "service failed to start; check: journalctl -u ${SERVICE} -n 50"
 
 # -----------------------------------------------------------------------------
-# Summary
+# Summary: print listening address, all reachable URLs and the token
 # -----------------------------------------------------------------------------
 TOKEN_NOW="$($SUDO grep '^AGENT_TOKEN=' "$ENV_FILE" | cut -d= -f2-)"
-NODE_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[ -n "$NODE_IP" ] || NODE_IP="<node-ip>"
+LISTEN_NOTE="all interfaces"
+[ "$HOST" = "0.0.0.0" ] || LISTEN_NOTE="single interface (the UI needs the node's IP — prefer 0.0.0.0)"
 
 log "-------------------------------------------"
 log "dnsmasq-ha agent is running (${STATE})"
-log "  service : ${SERVICE} (port ${PORT})"
-log "  url     : http://${NODE_IP}:${PORT}"
+log "  service : ${SERVICE}"
+log "  listen  : ${HOST}:${PORT} (${LISTEN_NOTE})"
+log "  env     : ${ENV_FILE} (AGENT_TOKEN / AGENT_HOST / AGENT_PORT)"
+log "  urls    :"
+NODE_IPS="$(hostname -I 2>/dev/null || true)"
+if [ -n "$NODE_IPS" ]; then
+  for ip in $NODE_IPS; do
+    log "            http://${ip}:${PORT}"
+  done
+else
+  log "            http://<node-ip>:${PORT}"
+fi
 log "  token   : ${TOKEN_NOW}"
-log "Add a node in the UI with this URL and token."
+if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Status: active"; then
+  log "  firewall: ufw is active — allow the port with: sudo ufw allow ${PORT}/tcp"
+fi
+log "Add a node in the UI with one of the URLs above and this token."
 log "Uninstall anytime: this script --uninstall [--purge]"
 log "-------------------------------------------"

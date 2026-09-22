@@ -57,6 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/taiojia/dnsmasq-ha/master/scripts/i
 | Flag | Applies to | Meaning |
 |------|-----------|---------|
 | `--token <tok>` | agent | Set the API token (generated on first install if omitted) |
+| `--host <addr>` | agent | Listen address (default `0.0.0.0` = all interfaces — the UI connects from another machine; do not use `127.0.0.1`) |
 | `--port <port>` | both | Agent port (default `8080`) / UI preview port (default `4173`) |
 | `--dir <path>` | both | Install directory (`/opt/dnsmasq-ha` / `~/.dnsmasq-ha`) |
 | `--ref <ref>` | both | Branch or tag to install (default `master`) |
