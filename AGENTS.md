@@ -8,15 +8,17 @@ Guidance for human contributors and AI coding agents working in this repository.
 
 **dnsmasq-ha** deploys [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) with high availability (keepalived VIP failover) and automatic recovery on Ubuntu Server. A basic cluster is one dnsmasq master and one dnsmasq backup node sharing a virtual IP (VIP).
 
-Repository layout:
+The project is a TypeScript monorepo (npm workspaces, Node.js >= 18). Repository layout:
 
 ```
 .
-├── dnsmasq-ha.py        # Entry point: sudo python dnsmasq-ha.py <master|backup>
-├── command.py           # Thin subprocess wrapper (Command class)
-├── conf/
-│   ├── keepalived.conf.master   # keepalived config for the master node (edit the VIP)
-│   └── keepalived.conf.backup   # keepalived config for the backup node (edit the VIP)
+├── apps/
+│   ├── agent/           # Fastify management agent, installed on each cluster node (systemd)
+│   └── ui/              # React + Vite dashboard, runs on the operator's laptop
+├── packages/
+│   └── contract/        # Shared API contract: zod schemas, types, routes, default templates
+├── scripts/             # One-command installers: install-agent.sh, install-ui.sh
+├── docs/specs/          # Feature specs (see workflow below)
 └── README.md
 ```
 
@@ -31,8 +33,8 @@ All changes — code, docs, and specs — go through [GitHub Flow](https://docs.
 2. **Commit** small, focused changes with imperative subject lines, e.g. `Add keepalived priority tuning`.
 3. **Open a Pull Request** against `master` early (drafts are welcome) and describe what changed and why.
 4. **Review & iterate**: address feedback with additional commits on the same branch.
-5. **Merge** to `master` after approval; keep history readable.
-6. **Delete** the branch after merge and pull the updated `master` locally.
+5. **Merge with a squash merge** (`gh pr merge --squash --delete-branch`) so each PR lands as exactly one commit on `master`; reference the PR number in the subject, e.g. `Add one-command installers for agent and UI (#4)`.
+6. **Delete** the branch after merge (the flag above does it) and pull the updated `master` locally.
 
 `master` must always remain deployable.
 
@@ -40,7 +42,7 @@ All changes — code, docs, and specs — go through [GitHub Flow](https://docs.
 
 Non-trivial changes are described by a **Feature Spec** before implementation:
 
-- Location: `docs/specs/NNN-<feature-name>.md` with a zero-padded sequence number (e.g. `docs/specs/001-vip-health-check.md`).
+- Location: `docs/specs/NNN-<feature-name>.md` with a zero-padded sequence number (e.g. `docs/specs/001-ts-rewrite.md`).
 - Commit the spec on the same feature branch that implements the feature, or on its own `docs/<topic>` branch.
 - Link the spec in the Pull Request description.
 - Update the spec's status (`draft` → `accepted` → `implemented`) as work progresses; if a decision changes, mark the spec `superseded` and reference its replacement instead of silently diverging.
@@ -71,12 +73,14 @@ Trivial changes (typos, one-line fixes, config tweaks) do not need a spec — a 
 ## Documentation
 
 - Docs live with the code and are updated in the same PR as the change they describe.
-- Keep `README.md` accurate for users (deployment steps) and this file accurate for contributors and agents.
+- Keep `README.md` accurate for users (install and usage steps) and this file accurate for contributors and agents.
 - When a decision conflicts with an existing spec, update the spec first.
 
 ## Code Notes for Agents
 
-- The code is legacy **Python 2** (tab-indented, `print` statements). Match the existing style; do not mix Python 3-only syntax into changes that are not a deliberate port.
-- Reuse `Command.execute()` / `Command.execute_get_output()` from `command.py` for shell-outs instead of calling `subprocess` directly.
-- Config templates under `conf/` are copied verbatim onto target systems — keep edits minimal and well commented.
-- There is no test suite. State in the PR how you verified a change (e.g. dry-run of the deployment logic on a test node).
+- npm workspaces: `apps/agent` and `apps/ui` consume `@dnsmasq-ha/contract` from its built `dist/`. A root `postinstall` script builds the contract — run `npm install` before any dev/start command on a fresh clone.
+- **Define API changes in `packages/contract` first** (zod schemas, types, route constants, default templates), then implement them in the agent and UI. The contract is the single source of truth for both sides.
+- The agent runs **as root** on target nodes (it executes `apt-get`, writes `/etc` configs) and listens on `0.0.0.0` by default so the UI can connect from another machine; the UI binds `127.0.0.1` locally. Auth is a Bearer token compared in constant time.
+- Shell-outs use a fixed command allowlist (`apt-get`, `systemctl`) via `execFile` — never interpolate user input into shell strings, and never add commands built from request data.
+- Installer scripts in `scripts/` must stay idempotent (re-run = in-place upgrade, agent token preserved), work when piped from `curl | bash` (never prompt on non-tty), and elevate with `sudo` internally only where needed.
+- There is no test suite. Verify changes with `npm run build` (contract build + agent strict typecheck + UI build) and state in the PR how you verified behavior — e.g. a real install/upgrade/uninstall cycle on a systemd host, or an API smoke test with curl.
