@@ -17,12 +17,15 @@ The project is a TypeScript monorepo with three packages:
 ### Architecture
 
 ```
-┌──────────────────────┐   HTTPS/WSS + token    ┌─────────────────────────┐
-│  UI (TS, Vite+React) │ ─────────────────────► │  Agent (TS, Node)       │
-│  runs on your laptop │ ◄───────────────────── │  systemd service on     │
-└──────────────────────┘   live status stream    │  each node (master+backup)│
-                                                 └─────────────────────────┘
+┌──────────────────────┐  HTTP + Bearer token   ┌──────────────────────────┐
+│  UI (TS, Vite+React) │ ─────────────────────► │  Agent (TS, Node)        │
+│  runs on your laptop │ ◄───────────────────── │  systemd service on      │
+└──────────────────────┘  status · deploy ·     │  each node               │
+                           config (on demand)   │  (master + backup)       │
+                                                └──────────────────────────┘
 ```
+
+> The agent serves plain HTTP today; TLS is planned in a follow-up spec, so keep the agent on a trusted network (see [Security notes](#security-notes)).
 
 ### Requirements
 
@@ -39,20 +42,27 @@ npm install
 # Provide a token (or omit to have the agent generate one and log it):
 export AGENT_TOKEN="pick-a-long-random-secret"
 export AGENT_PORT=8080        # optional, default 8080
-npm run start:agent
+sudo -E npm run start:agent   # the agent needs root for apt and /etc writes
 ```
 
-The agent must run as root. For a permanent setup use a systemd unit:
+The agent must run as root. For a permanent setup, clone (or move) the repo to the path the unit expects — `/opt/dnsmasq-ha` below; adjust `WorkingDirectory` if you clone elsewhere — and use a systemd unit:
 
 ```ini
 [Unit]
 Description=dnsmasq-ha agent
+Wants=network-online.target
 After=network-online.target
 
 [Service]
 ExecStart=/usr/bin/npm run start:agent
 WorkingDirectory=/opt/dnsmasq-ha
+# Option A: keep the token in the unit file
 Environment=AGENT_TOKEN=change-me
+# Option B (recommended): keep it in a root-only env file instead, e.g.
+#   sudo install -m 600 /dev/null /etc/dnsmasq-ha/agent.env
+#   echo 'AGENT_TOKEN=change-me' | sudo tee /etc/dnsmasq-ha/agent.env
+# then uncomment:
+#EnvironmentFile=/etc/dnsmasq-ha/agent.env
 Restart=always
 
 [Install]
@@ -77,7 +87,7 @@ npm run build
 npm run preview -w @dnsmasq-ha/ui
 ```
 
-Open the printed URL (default `http://localhost:5173`), then for each node click **Add a node** and enter the agent URL (`http://<node-ip>:8080`) and its token. From each node card you can:
+Open the printed URL — `http://localhost:5173` for the dev server or `http://localhost:4173` for the production preview — then for each node click **Add a node** and enter the agent URL (`http://<node-ip>:8080`) and its token. From each node card you can:
 
 - **Deploy** dnsmasq + keepalived as `master` or `backup` (installs packages, writes the role's keepalived template if missing, enables and starts services)
 - **Edit** `keepalived.conf` and `dnsmasq.conf` with save-and-restart
@@ -97,7 +107,7 @@ All endpoints require `Authorization: Bearer <token>`:
 ### Security notes
 
 - The agent is root-equivalent: keep it on a trusted LAN/VPN only. Never expose the port to the public internet.
-- Tokens are compared timing-safe; the token file is created with `0600`.
+- Tokens are compared in constant time (timing-safe); the token file is created with `0600`.
 - TLS is planned in a follow-up spec (see `docs/specs/`).
 
 ### Development
