@@ -14,6 +14,8 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly detail?: string,
+    /** Raw parsed response body, when available (e.g. deploy step logs). */
+    public readonly body?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -55,6 +57,7 @@ export class AgentClient {
         body?.error ?? res.statusText,
         res.status,
         body?.detail,
+        body,
       );
     }
     return body as T;

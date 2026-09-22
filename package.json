@@ -13,6 +13,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "postinstall": "npm run build -w @dnsmasq-ha/contract",
     "build": "npm run build -w @dnsmasq-ha/contract && npm run typecheck -w @dnsmasq-ha/agent && npm run build -w @dnsmasq-ha/ui",
     "dev:agent": "npm run dev -w @dnsmasq-ha/agent",
     "dev:ui": "npm run dev -w @dnsmasq-ha/ui",

@@ -70,6 +70,13 @@ npm install
 npm run dev:ui
 ```
 
+To serve a production build of the UI instead of the dev server:
+
+```bash
+npm run build
+npm run preview -w @dnsmasq-ha/ui
+```
+
 Open the printed URL (default `http://localhost:5173`), then for each node click **Add a node** and enter the agent URL (`http://<node-ip>:8080`) and its token. From each node card you can:
 
 - **Deploy** dnsmasq + keepalived as `master` or `backup` (installs packages, writes the role's keepalived template if missing, enables and starts services)

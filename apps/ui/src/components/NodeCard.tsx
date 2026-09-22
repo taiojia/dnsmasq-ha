@@ -6,7 +6,7 @@ import {
   type StatusResponse,
 } from "@dnsmasq-ha/contract";
 
-import { AgentClient, describeError } from "../api";
+import { AgentClient, ApiError, describeError } from "../api";
 import type { StoredNode } from "../types";
 import { ConfigEditor } from "./ConfigEditor";
 
@@ -58,6 +58,12 @@ export function NodeCard({ node, onEdit, onRemove }: Props) {
       await refresh();
     } catch (err) {
       setDeployError(describeError(err));
+      // Surface the per-command step log returned by a failed deployment.
+      const steps =
+        err instanceof ApiError
+          ? (err.body as { steps?: DeployStep[] } | undefined)?.steps
+          : undefined;
+      if (steps && steps.length > 0) setDeploySteps(steps);
     } finally {
       setDeploying(false);
     }

@@ -2,6 +2,7 @@
  * Node operations exposed by the agent: status reporting, deployment and
  * config management for dnsmasq and keepalived.
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
@@ -58,10 +59,13 @@ export async function getConfig(service: ServiceName): Promise<ConfigResponse> {
   }
 }
 
-/** Write a file atomically (write to a temp file, then rename over target). */
+/**
+ * Write a file atomically (write to a uniquely named temp file, then rename
+ * over the target). A random suffix keeps concurrent writes from colliding.
+ */
 async function atomicWrite(filePath: string, content: string): Promise<void> {
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.tmp-${process.pid}`;
+  const tmp = `${filePath}.tmp-${process.pid}-${crypto.randomUUID()}`;
   await fsp.writeFile(tmp, content, { mode: 0o644 });
   await fsp.rename(tmp, filePath);
 }
