@@ -43,10 +43,10 @@ export function NodeForm({ initial, onSubmit, onCancel }: Props) {
 
   return (
     <form className="card form" onSubmit={submit}>
-      <h2>{initial ? `Edit node: ${initial.name}` : "Add a node"}</h2>
+      <h2>{initial ? `Edit ${initial.name}` : "Add a node"}</h2>
       <div className="form-grid">
         <label>
-          Name <span className="muted">(optional)</span>
+          Name
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}

@@ -78,28 +78,35 @@ export function ConfigEditor({ client, service }: Props) {
   return (
     <div className="editor">
       {loading ? (
-        <p className="muted">Loading configuration…</p>
+        <p className="connecting">Loading configuration…</p>
       ) : (
         <>
           {!exists && (
             <p className="warning">
-              {path} does not exist on the node yet — the editor is prefilled
-              with a default template. Saving will create it.
+              {path} does not exist on the node yet — prefilled with a default
+              template. Saving will create it.
             </p>
           )}
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            spellCheck={false}
-            rows={20}
-          />
-          <div className="actions">
-            <button onClick={() => void save()} disabled={saving || !content.trim()}>
+          <div className="editor-panel">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              spellCheck={false}
+              rows={18}
+              aria-label={`${service} configuration`}
+            />
+          </div>
+          <div className="editor-actions">
+            <button
+              onClick={() => void save()}
+              disabled={saving || !content.trim()}
+            >
               {saving ? "Saving…" : "Save & restart service"}
             </button>
             {message && <span className="success">{message}</span>}
             {error && <span className="error">{error}</span>}
           </div>
+          {exists && <p className="editor-path">{path}</p>}
         </>
       )}
     </div>

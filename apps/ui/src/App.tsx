@@ -5,6 +5,9 @@ import type { StoredNode } from "./types";
 import { NodeCard } from "./components/NodeCard";
 import { NodeForm } from "./components/NodeForm";
 
+const AGENT_INSTALL_CMD =
+  "curl -fsSL https://raw.githubusercontent.com/taiojia/dnsmasq-ha/master/scripts/install-agent.sh | bash";
+
 export default function App() {
   const [nodes, setNodes] = useState<StoredNode[]>(() => loadNodes());
   const [editing, setEditing] = useState<StoredNode | null>(null);
@@ -29,12 +32,17 @@ export default function App() {
 
   return (
     <main className="container">
-      <header>
-        <h1>dnsmasq-ha</h1>
-        <p className="subtitle">
-          High-availability dnsmasq cluster management — configure the address
-          and token of each node's agent, then deploy and manage it from here.
-        </p>
+      <header className="topbar">
+        <div className="brand">
+          <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="7" fill="#0d141e" />
+            <circle cx="9" cy="16" r="4" fill="#2fc6b0" />
+            <path d="M13 16h6" stroke="#2fc6b0" strokeWidth="2" />
+            <circle cx="23" cy="16" r="3.5" fill="none" stroke="#8ca0b3" strokeWidth="2" />
+          </svg>
+          <span className="brand-name">dnsmasq-ha</span>
+        </div>
+        <p className="tagline">Two-node DNS failover control</p>
       </header>
 
       <NodeForm
@@ -45,10 +53,14 @@ export default function App() {
       />
 
       {nodes.length === 0 ? (
-        <p className="empty">
-          No nodes configured yet. Add the agent address and token of your
-          master and backup nodes above.
-        </p>
+        <div className="empty card">
+          <p className="empty-title">No nodes connected yet</p>
+          <p className="muted">
+            Install the agent on each server, then add its address and token
+            above.
+          </p>
+          <pre className="command">{AGENT_INSTALL_CMD}</pre>
+        </div>
       ) : (
         <section className="nodes">
           {nodes.map((node) => (
