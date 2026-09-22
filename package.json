@@ -1,0 +1,21 @@
+{
+  "name": "dnsmasq-ha",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dnsmasq failover (keepalived) with a TypeScript agent and management UI",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "npm run build -w @dnsmasq-ha/contract && npm run typecheck -w @dnsmasq-ha/agent && npm run build -w @dnsmasq-ha/ui",
+    "dev:agent": "npm run dev -w @dnsmasq-ha/agent",
+    "dev:ui": "npm run dev -w @dnsmasq-ha/ui",
+    "start:agent": "npm run start -w @dnsmasq-ha/agent"
+  }
+}

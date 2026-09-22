@@ -1,0 +1,25 @@
+{
+  "name": "@dnsmasq-ha/contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared API contract (zod schemas, types, routes, default templates) for the dnsmasq-ha agent and UI",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
