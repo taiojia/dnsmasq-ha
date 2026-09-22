@@ -102,7 +102,10 @@ export const API_VERSION = "v1";
 export const API_ROUTES = {
   status: `/api/${API_VERSION}/status`,
   deploy: `/api/${API_VERSION}/deploy`,
-  config: (service: ServiceName) => `/api/${API_VERSION}/config/${service}`,
+  /** `service` is a ServiceName, or the literal ":service" when registering
+   * a parameterized route on the server side. */
+  config: (service: ServiceName | ":service") =>
+    `/api/${API_VERSION}/config/${service}`,
 } as const;
 
 // ---------------------------------------------------------------------------

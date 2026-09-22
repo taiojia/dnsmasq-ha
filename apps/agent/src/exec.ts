@@ -3,13 +3,14 @@
  *
  * The agent runs as root on the target node and only ever executes a fixed
  * set of commands (apt-get, systemctl) built from internal constants —
- * never from user-supplied strings.
+ * never from user-supplied strings. execFile is used (no shell) both for
+ * safety and to get a clean ENOENT signal when a binary is absent.
  */
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 
 export interface RunResult {
   ok: boolean;
-  /** Process exit code, or null when the process could not be spawned. */
+  /** Process exit code, or 1 when the process could not be spawned. */
   code: number | null;
   stdout: string;
   stderr: string;
@@ -26,17 +27,18 @@ export function run(
   args: string[],
   timeoutMs = 120_000,
 ): Promise<RunResult> {
-  const line = [command, ...args].join(" ");
   return new Promise((resolve) => {
-    exec(
-      line,
+    execFile(
+      command,
+      args,
       { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
+        const code = typeof err?.code === "number" ? err.code : err ? 1 : 0;
         resolve({
           ok: !err,
-          code: typeof err?.code === "number" ? err.code : err ? 1 : 0,
-          stdout: stdout.toString(),
-          stderr: stderr.toString(),
+          code,
+          stdout: stdout?.toString() ?? "",
+          stderr: stderr?.toString() ?? "",
           missing: err?.code === "ENOENT",
         });
       },
