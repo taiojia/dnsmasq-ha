@@ -32,7 +32,39 @@ The project is a TypeScript monorepo with three packages:
 - **Agent nodes**: Ubuntu Server, Node.js >= 18, root access (the agent runs `apt-get` and writes `/etc` configs)
 - **UI**: any modern browser, Node.js >= 18 on the laptop
 
-### Server setup (each node)
+### Quick install
+
+Two commands — one on each cluster node, one on your laptop:
+
+```bash
+# On each server node (master & backup):
+curl -fsSL https://raw.githubusercontent.com/taiojia/dnsmasq-ha/master/scripts/install-agent.sh | bash
+
+# On your laptop:
+curl -fsSL https://raw.githubusercontent.com/taiojia/dnsmasq-ha/master/scripts/install-ui.sh | bash
+```
+
+- **Agent installer**: installs Node.js 20 if missing, deploys to `/opt/dnsmasq-ha`, registers a systemd service (`dnsmasq-ha-agent`), generates a token, and prints the node URL + token — paste those into the UI.
+- **UI installer**: clones the repo to `~/.dnsmasq-ha`, builds the UI, and adds a `dnsmasq-ha-ui` launcher that serves it on `http://127.0.0.1:4173` and opens your browser.
+- Re-running an installer upgrades in place and preserves the agent token.
+
+Flags are passed through a pipe with `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taiojia/dnsmasq-ha/master/scripts/install-agent.sh | bash -s -- --port 9000 --token mysecret
+```
+
+| Flag | Applies to | Meaning |
+|------|-----------|---------|
+| `--token <tok>` | agent | Set the API token (generated on first install if omitted) |
+| `--host <addr>` | agent | Listen address (default `0.0.0.0` = all interfaces — the UI connects from another machine; do not use `127.0.0.1`) |
+| `--port <port>` | both | Agent port (default `8080`) / UI preview port (default `4173`) |
+| `--dir <path>` | both | Install directory (`/opt/dnsmasq-ha` / `~/.dnsmasq-ha`) |
+| `--ref <ref>` | both | Branch or tag to install (default `master`) |
+| `--uninstall` | both | Agent: stop + remove service and env file · UI: remove launcher |
+| `--purge` | both | With `--uninstall`: also delete the install directory (pass the same `--dir` used at install) |
+
+### Manual setup — server (each node)
 
 ```bash
 git clone https://github.com/taiojia/dnsmasq-ha.git
@@ -71,7 +103,7 @@ WantedBy=multi-user.target
 
 If `AGENT_TOKEN` is not set, the agent reads `AGENT_TOKEN_FILE` (default `~/.dnsmasq-ha/agent-token`) or generates a 32-byte hex token, stores it with `0600` and logs it once — copy that value into the UI.
 
-### Client setup (your laptop)
+### Manual setup — laptop
 
 ```bash
 git clone https://github.com/taiojia/dnsmasq-ha.git
